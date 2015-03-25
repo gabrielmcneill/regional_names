@@ -76,7 +76,30 @@ I experimented with different stopword lists, including the English list (`stopw
 In addition to tokenization and stopword removal I defined my own class (`SnowballEnglishStemmer`) that implements the NLTK stemmer `EnglishStemmer` from the [`nltk.stem.snowball`](http://www.nltk.org/_modules/nltk/stem/snowball.html) module. I also tested the performance of the NLTK Porter and Lancaster stemmers, but they offered no improvements over the `EnglishStemmer`, so I settled on using it.
 
 #Data Exploration
+Working with text data can be challenging since there are so many non-ascii character encodings. Determining simple summary statistics for a large database of tweet text can be difficult due to its size, but also because of the different decisions one must make about what counts as a character, and what does not. For example, emoji are increasingly common, and while they may appear as one coherent character in tweets, when decoded into unicode they are composed of many characters. :smile: becomes `\xF0\x9F\x98\x84` in utf-8 encoding, and `\U0001f604` in unicode. Twitter has a 140 character limit, but where special characters are concerned all are counted as single characters when they appear as one in a tweet. Thus, when tweet text is decoded, as is necessary for text processing, one may find tweets with an apparent character length of 500 or more. In addition to emoji, there are other specially encoded characters that one must be aware of when processing text.
 
+When ignoring all non-ascii characters, my data set of 145,559 tweets can be summarized as follows:
+
+| Measure on Number of Characters | Value | Measure on Number of Words | Value |
+|:--------------------------------|------:|:---------------------------|------:|
+| Mean Tweet Length (chars)       | 63.77 | Mean # Words per Tweet        | 11.44 |
+| Median Tweet Length (chars)     | 56    | Median # Words per Tweet      | 10    |
+| Minimum Tweet Length (chars)    | 4     | Minimum # Words in Tweet     | 1     |
+| Maximum Tweet Length (chars)    | 140   | Maximum # Words in Tweet     | 43    |
+
+![char hist](https://cloud.githubusercontent.com/assets/10871563/6831921/908ef998-d2e0-11e4-9e47-20265625a1b3.png "Histogram of Number of Characters per Tweet")
+
+Many of the tweets in the 120 to 125 character length range have several URLs, which inflates the character length. The steady rise up to the character limit of 140 seems to be due to tweets that are composed primarily of standard ascii characters.
+
+An example of a tweet with minimum length: `u''Pist`.
+
+An example of a tweet with maximum length: `u'#SocialMedia Series Sale\nFOLLOW: http://t.co/Umt0LljucZ\nPROFILE: http://t.co/rnD0fWojTa\nHOME - http://t.co/on6F0R0u0i http://t.co/UQWrbzvSbU'`.
+
+![words hist](https://cloud.githubusercontent.com/assets/10871563/6831923/92e6006a-d2e0-11e4-9fdb-94fd83077e94.png "Histogram of Number of Words per Tweet")
+
+An example of a tweet with the minimum number of words: `'Anyyyywayssssss.'`.
+
+An example of a tweet with the maximum number of words: `'@jasonthejman p4 plays:\n1,2,6,8,9,10/3/7/3,5,8,10\n8,9,10/3/7/3,5,8,10\n8,9,10/4/7/3,5,8,10\n8,9,10/3/2,8/3,5,8,10'`. This of course assumes that isolated numerals count as words.
 
 #Data Modeling and Choice of Classifier
 For text classification the bag-of-words model is standard, and involves creating a data matrix with as many rows as documents (in this case tweets), and as many columns as features. The `[i,j]`th element of the data matrix is an integer equal to the number of times feature j appears in document i ( `tf[i,j]` ). Alternatively, one may employ tf-idf reweighting to construct a data matrix such that the `[i,j]`th element is a floating point number equal to a function of the number of times feature j appears in document i ( `f( tf[i,j] )` ), divided by a function of the number of documents feature j appears in ( `g( idf[j]` ) ). In the tf-idf bag-of-words model the `[i,j]`th element is then `f( tf[i,j] )/g( idf[j] )`. 
@@ -138,8 +161,21 @@ At the end of the data modeling phase I settled on the five classifiers that wer
 #Training and Testing Classifiers
 Once the five classifiers were selected (Multinomial Naive Bayes, Logistic Regression, Stochastic Gradient Descent, Perceptron, and the Passive Aggressive Classifier) the next step was to determine parameters that result in higher classifier performance. 
 
+![NB parm](https://cloud.githubusercontent.com/assets/10871563/6831993/e9adfe84-d2e0-11e4-9c4f-d36bce150dd2.png "ROC AUC for Different Values of Naive Bayes Smoothing Parameters")
 
+Using 10-fold cross-validation to estimate the area under the ROC curve for Multinomial Naive Bayes for different values of the Lidstone smoothing parameter (`alpha` in the scikit-learn implementation), it was apparent that lower values resulted in better performance, as one can see in the above plot. I determined an approximate value for the smoothing parameter as `alpha = 0.005`.
 
+![LR parm](https://cloud.githubusercontent.com/assets/10871563/6832002/f39a86a6-d2e0-11e4-8158-878b7b8055cf.png "ROC AUC for Different Values of Logistic Regression Regularization Parameters")
+
+As the above plot indicates for Logistic Regression, regularization parameters above 16.0 do not appear to improve the performance. I selected 16.0 after engaging in an iterative search process.
+
+![PA parm](https://cloud.githubusercontent.com/assets/10871563/6832019/01a04b46-d2e1-11e4-9e31-887ac3665a59.png "ROC AUC for Different Values of Passive Aggressive Classifier Regularization Parameters")
+
+There is a slight performance maximum when the regularization parameter of the Passive Aggressive Classifier is near 0.5, as can be seen in the above plot. `C = 0.5` is the parameter that I settled on as leading to the best ROC area under the curve scores for the Passive Aggressive Classifier.
+
+![NB cvs](https://cloud.githubusercontent.com/assets/10871563/6833185/667e326a-d2e8-11e4-823a-01a6f2d546cf.png "ROC AUC for Different Cross-validation Folds on Naive Bayes (alpha=0.005) Classifier")
+
+To answer the question of how many folds of cross-validation would be sufficient for comparing the performance of the various classifiers I investigated how the estimates of the area under the ROC curves changed with different folds. In general, 10-fold cross-validation results in estimates that are very similar to higher fold cross-validation estimates. Because the computation time increases with the fold of cross-validation, I settled on 10-fold cross-validation as the standard method for computing the ROC scoring metrics.
 
 #Best Features
 The **Multinomial Naive Bayes classifier** (with smoothing parameter `alpha = 0.005`) determined the following most infomative features:
