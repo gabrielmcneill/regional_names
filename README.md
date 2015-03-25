@@ -1,7 +1,7 @@
 # Regional Words Project
 
 ## Overview
-This data science project analyzes Twitter data to classify individual tweets as originating in one of two pre-defined  US regions: East or West. I train several classifiers, scoring them based on their performance as measured by the area under their receiver operating characteristic (ROC) curves. Finally, I present and analyze the most informative features that each classifier finds.
+This data science project analyzes Twitter data to classify individual tweets as originating in one of two pre-defined US regions: East or West. I train several classifiers, scoring them based on their performance as measured by the area under their receiver operating characteristic (ROC) curves. Finally, I present and analyze the most informative features that each classifier finds.
 
 ## Table of Contents
 
@@ -13,17 +13,17 @@ This data science project analyzes Twitter data to classify individual tweets as
   2. [Tokenization and Stemming](##Tokenization and Stemming)
 5. [Data Exploration](#Data Exploration)
 6. [Data Modeling and Choice of Classifier](#Data Modeling and Choice of Classifier)
-7. [Training and Testing](#Training and Testing of Classifiers)
+7. [Training and Testing of Classifiers](#Training and Testing of Classifiers)
 8. [Best Features](#Best Features)
 9. [Conclusion](#Conclusion)
 
 
 #Introduction
-The motivation for this project is to evaluate the hypothesis that the geographical origin of a tweet can be predicted using its text alone. Well known studies of regional linguistic variation have demonstrated that it is possible to cluster variations in vocabulary, pronunciation, and grammar in English by geographical regions of the United States ([New York Times interactive dialect map](http://www.nytimes.com/interactive/2013/12/20/sunday-review/dialect-quiz-map.html)). However, when attempting to classify tweet text by US region there are a couple of challenges to overcome in order to create a reasonable classifier: (1) Twitter enforces a 140 character limit on individual tweets, resulting in extremely sparse feature matrices (using the bag-of-words model) and (2) most defining features of regional linguistic variation are not common in normal English text, let alone the abbreviated form often used in tweets. 
+The motivation for this project is to evaluate the hypothesis that the geographical origin of a tweet can be predicted using its text alone. Well known studies of regional linguistic variation have demonstrated that it is possible to cluster variations in vocabulary, pronunciation, and grammar in English by geographical regions of the United States ([New York Times interactive dialect map](http://www.nytimes.com/interactive/2013/12/20/sunday-review/dialect-quiz-map.html)). However, when attempting to classify tweet text by US region there are a couple of challenges to overcome in order to create a reasonable classifier: (1) Twitter enforces a 140 character limit on individual tweets, resulting in extremely sparse feature matrices (using the bag-of-words model) and (2) most defining features of regional linguistic variation are not common in normal English text, let alone in the abbreviated form often used in tweets. 
 
-The character limit on tweets makes it crucial to collect as large a sample as possible, and to carefully select features used in training a classifier. Perhaps the most critical aspect of training any text classifier is in the choice of text features. My initial approach was to compile a list of words and phrases that could possibly serve as informative features. I did so by compiling a list of 381 words and phrases identified by linguists as being characteristic of certain regional dialects. However, none of the 381 words or phrases appeared among an initial test sample of 5,499 tweets, which made it clear that such words were most likely not going to be helpful in training a good classifier (only 78 of the 381 appear in my final sample of 145,559 tweets, and none are among the most informative features). It was clear to me that a pure machine learning approach would be necessary to train a strong classifier.
+The character limit on tweets makes it crucial to collect as large a sample as possible, and to carefully select features used in training a classifier. Perhaps the most critical aspect of training any text classifier is in the choice of text features, for it is not only an important factor in training a strong classifier, but it also can affect how well a classification method scales under increasing numbers of observations. My initial approach in this project was to compile a list of words and phrases that could possibly serve as informative features. I did so by compiling a list of 381 words and phrases identified by linguists as being characteristic of certain regional dialects. However, none of the 381 words or phrases appeared among an initial test sample of 5,499 tweets, which made it clear that such words were most likely not going to be helpful in training a good classifier (only 78 of the 381 appear in my final sample of 145,559 tweets, and none is among the most informative features). It was clear to me that a pure machine learning approach would be necessary to train a strong classifier.
 
-I considered a wide range of potential classification algorithms including Support Vector Machines, Random Forests, and ensemble methods (AdaBoost, Bagging, Gradient Boosting), but in benchmark timing tests that I ran I determined them to be infeasible due to their poor scaling when applied to my tweet database (145,599 observations of 108,400 features), and when performed on the machines I have access to. I ruled out other classifiers (Ridge Classification, K-Nearest Neighbors, Linear Discriminant Analysis, Quadratic Discriminant Analysis), and in the end evaluated five different feasible classification methods: Multinomial Naive Bayes, Logistic Regression, Stochastic Gradient Descent, Perceptron, and the Passive Aggressive Classifier. 
+I considered a wide range of potential classification algorithms including Support Vector Machines, Random Forests, and ensemble methods (AdaBoost, Bagging, Gradient Boosting), but in benchmark timing tests that I ran I determined them to be infeasible due to their poor scaling when applied to my tweet database (145,599 observations of 108,400 features), and when performed on the machines I have access to. I ruled out other classifiers (Ridge Classification, K-Nearest Neighbors, Linear Discriminant Analysis, Quadratic Discriminant Analysis) for similar reasons, and in the end evaluated five different feasible classification methods: Multinomial Naive Bayes, Randomized Logistic Regression, Stochastic Gradient Descent, Perceptron, and the Passive Aggressive Classifier. 
 
 
 #Region Definition
@@ -34,7 +34,27 @@ A large proportion of the tweets that I collected originated in states on the Ea
 At the beginning of the project I originally defined six different US regions (West, Lowerwest, Upperwest, Midwest, South, and East), but because of the comparatively few tweets in the Lowerwest and Upperwest regions training a classifier proved difficult. The large proportion of tweets from the South tended to heavily bias the classifiers to only predict South, leading to classification accuracy only slightly above what one would expect if one were to always classify each tweet as originating in the South. I switched to a binary regional split between East and West in order to have both a more balanced proportion of tweets per region, and to maintain interpretability, defining regional divisions that roughly correspond to intuitively coherent geographical areas.
 
 #Data Collection - Interfacing With The Twitter API
-The program (`twitter_interface.py`) runs from the command line, samples tweets by interacting with the [Twitter API](https://dev.twitter.com/streaming/overview), and deposits them into a pickle (`.p`) file into the current directory. It accepts two command-line arguments: `MAX_TWEETS`, which determines the number of tweets to sample, and an optional `file_name` that the user can set to name the name of the file containing the tweet data.
+The program (`twitter_interface.py`) runs from the command line, samples tweets by interacting with the [Twitter API](https://dev.twitter.com/streaming/overview), and deposits them into a pickle (`.p`) file into the current directory. It accepts two command-line arguments: `MAX_TWEETS`, which determines the number of tweets to sample, and an optional `file_name` that the user can set to name the name of the file containing the tweet data. The Twitter streaming API requires [authentication](https://dev.twitter.com/oauth/overview), so in order to use `twitter_interface.py` one must have a twitter account and apply for the proper authentication keys:
+```python
+APP_KEY='XXX'
+APP_SECRET='XXX'
+OAUTH_TOKEN='XXX'
+OAUTH_TOKEN_SECRET='XXX'
+```
+`twitter_interface.py` expects that these authentication tokens be stored as environment variables with the names:
+```python
+TWITTER_APP_KEY
+TWITTER_APP_SECRET
+TWITTER_OAUTH_TOKEN
+TWITTER_OAUTH_TOKEN_SECRET
+```
+Non-persistent environment variables can be created from the command line in the following way (`$` is a shell prompt):
+```
+$ export TWITTER_APP_KEY='XXX'
+$ export TWITTER_APP_SECRET='XXX'
+$ export TWITTER_OAUTH_TOKEN='XXX'
+$ export TWITTER_OAUTH_TOKEN_SECRET='XXX'
+```
 
 A modified `MyStreamer` class that inheirits the `TwythonStreamer` class from the [twython module](https://twython.readthedocs.org/en/latest/) performs the substantive interface with Twitter and appends to a list each dict containing an individual tweet and its corresponding geocoordinates of origin. The `process_tweets()` function takes the list of tweet data as its argument and adds to each tweet dict in the list a region label key and the regional classification for each observation using the above region definition. 
 
@@ -43,7 +63,7 @@ The 145,599 tweets in the data set I analyze here were collected different times
 #Data Cleaning
 
 ##Basic Issues
-Despite the use of filtering variables (`language='en, locations=US_BOUNDING_BOX'`) when interfacing with the Twitter streaming API, I nevertheless found in my data some tweets written in Spanish, and some tweets whose coordinates were outside of the `US_BOUNDING_BOX` that I used to define the region of interest. Additionally, although all dicts containing tweet data had keys corresponding to geocoordinates of origin (`'coordinates'`), there were many whose values were `None`. I excluded all tweets that were not in English, that did not originate within the West or East region, or that did not have coordinate data. All tweets with region key `'west'` and a corresponding value of `None` were excluded.
+Despite the use of filtering variables (`language='en, locations=US_BOUNDING_BOX'`) when interfacing with the Twitter streaming API, I nevertheless found in my data some tweets written in Spanish, and some tweets whose coordinates were outside of the `US_BOUNDING_BOX` that I used to define the region of interest. Additionally, although all dicts containing tweet data had keys corresponding to geocoordinates of origin (`'coordinates'`), there were many whose values were `None`. I excluded all tweets that were not in English, that did not originate within the West or East region, or that did not have coordinate data. All tweet dicts with region key `'west'` and value `None` were excluded.
 
 ##Tokenization and Stemming
 
@@ -59,8 +79,67 @@ In addition to tokenization and stopword removal I defined my own class (`Snowba
 
 
 #Data Modeling and Choice of Classifier
+For text classification the bag-of-words model is standard, and involves creating a data matrix with as many rows as documents (in this case tweets), and as many columns as features. The `[i,j]`th element of the data matrix is an integer equal to the number of times feature j appears in document i ( `tf[i,j]` ). Alternatively, one may employ tf-idf reweighting to construct a data matrix such that the `[i,j]`th element is a floating point number equal to a function of the number of times feature j appears in document i ( `f( tf[i,j] )` ), divided by a function of the number of documents feature j appears in ( `g( idf[j]` ) ). In the tf-idf bag-of-words model the `[i,j]`th element is then `f( tf[i,j] )/g( idf[j] )`. 
+
+I considered two methods of creating a data matrix: (1) the standard bag-of-words model, and (2) the tf-idf model, where `f( tf[i,j] ) = 1 + log( tf[i,j] )` and `g( idf[i,j] ) = log( 1 + idf[j] )`. These values for the functions `f()` and `g()` were settled upon after evaluating the performance of the classifiers (Multinomial Naive Bayes, Logistic Regression, Stochastic Gradient Descent, Perceptron, and the Passive Aggressive Classifier) for different functions.
+
+In this project 2-grams and 3-grams of text tokens are considered in addition to the individual tokens themselves, with the restriction that each such feature appear a minimum of two times ( `min( idf[j] ) = 2` ) in the entire collection of documents (tweets). Again, this decision was made after observing that the classifiers (Multinomial Naive Bayes, Logistic Regression, Stochastic Gradient Descent, Perceptron, and the Passive Aggressive Classifier) performed better with these values. 
+
+Using the scikit-learn vectorizers [`CountVectorizer`](http://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.CountVectorizer.html#sklearn.feature_extraction.text.CountVectorizer) and [`TfidfVectorizer`](http://scikit-learn.org/stable/modules/generated/sklearn.feature_extraction.text.TfidfVectorizer.html) in the `sklearn.feature_extraction.text` module, I instantiated these objects in the following way:
+```python
+count_vectz = CountVectorizer(stop_words='english', strip_accents='unicode', 
+                              ngram_range=(1,3), max_df=1.0, min_df=2,
+                              max_features=None, 
+                              tokenizer=SnowballEnglishStemmer())
+
+tfidf_vectz = TfidfVectorizer(stop_words='english', strip_accents='unicode', 
+                              ngram_range=(1,3), max_df=1.0, min_df=2, 
+                              max_features=None, binary=False, norm=u'l2',
+                              use_idf=True, smooth_idf=True, 
+                              sublinear_tf=True,
+                              tokenizer=rpg.SnowballEnglishStemmer())
+```
+
+The below table shows the area under the ROC curves for classifiers, where the only difference is the vectorization method (ROC AUC means and standard errors were calculated using 10-fold cross-validation).
+
+| Classifier | Area Under ROC Curve (Count Vectorization) | Area Under ROC Curve (Tf-idf Vectorization) |
+|:-----------|:------------------------------------------:|:-------------------------------------------:|
+| Multinomial Naive Bayes | 0.769 (+/-2SE: 0.038) | 0.791 (+/-2SE: 0.037) | 
+| Randomized Logistic Regression | 0.747 (+/-2SE: 0.041) | 0.772 (+/-2SE: 0.038) | 
+| Perceptron | 0.552 (+/-2SE: 0.039) | 0.572 (+/-2SE: 0.033) | 
+| Passive Aggressive Classifier | 0.673 (+/-2SE: 0.045) | 0.738 (+/-2SE: 0.042) |
+| Stochastic Gradient Descent | 0.647 (+/-2SE: 0.038) | 0.632 (+/-2SE: 0.040) | 
+
+As the above table suggests, it is generally seems to be the case that the tf-idf vectorization leads to higher performing classifiers in the data I collected.
+
+As I noted in the introduction, I attempted to use several well-known and high-performing classification methods, but ruled them out due to their performance on smaller test sets as follows (all times are in seconds, and N is the number of documents):
+
+| Classifier | N = 1000 | N = 2000 | N = 4000 | N = 8000 | N = 10000 | N = 16000 |
+|:-----------|:------------:|:------------:|:------------:|:------------:|:-------------:|:-------------:|
+| Multinomial Naive Bayes                | **0.001** | **0.001** | **0.002** | 0.027 | **0.003** | **0.004** |
+| Randomized Logistic Regression         | 0.428     | 0.584     | 0.915 | 2.011 | 2.177 | 3.687 |
+| Support Vector Machines	(linear)       | 0.117     | 0.521     | 2.487 | 11.939 | 19.589 | 56.015 |
+| Random Forests                         | 0.256     | 0.269     | 0.280 | 0.508 | 0.790 | 3.878 |
+| Ridge Classifier with Cross-validation | 0.132     | 0.162     | 0.208 | 0.539 | 0.421 | 0.687 |
+| K-Nearest Neighbors                    | 0.008     | 0.023     | 0.084 | 0.485 | 0.483 | 1.166 |
+| Perceptron                             | **0.001** | 0.002     | **0.002** | 0.074 | 0.004 | **0.004** |
+| Passive Aggressive Classifier          | **0.001** | **0.001** | **0.002** | **0.004** | **0.003** | 0.005 |
+| Linear Discriminant Analysis	         | 0.205     | 0.989 | 5.586 | X | X | X |
+| Stochastic Gradient Descent	           | **0.001** | **0.001** | **0.002** | **0.004** | **0.003** | 0.005 |
+| AdaBoost                               | 0.303     | 1.253 | 4.911 | 21.391 | 36.622 | 97.917 |
+| Bagging	                               | 1.310     | 7.261 | 46.271 | X | X | X |
+| Extra Trees Classifier                 | 0.160     | 0.945 | 5.496 | 29.780 | 48.904 | 173.738 |
+| Gradient Boosting                      | 1.255     | 8.627 | 35.323 | X | X | X |
+
+From the above data and other tests, I ruled out a large number of possible classifiers. After performing several regressions to estimate the functions describing how several of the classifiers scale with time I empirically determined that although Randomized Logistic Regression appeared to have similar times as Random Forests, Randomized Logistic Regression scaled approximately linearly, and Random Forests scaled approximately exponentially (empirical scaling function: `Time = 0.171*exp(N *1.68**-4)`). The Support Vector Machines method appeared to scale in polynomial time (emprirical scaling function: `Time = (2.03**-8)*N**(2.28)`). With these empirical scaling functions I calculated that Random Forests would require about 226 years to finish on my machine, and SVM would require around 3 and a third hours, when run on my entire dataset of 145,559 tweets.
+
+At the end of the data modeling phase I settled on the five classifiers that were most feasible in terms of their scaling properties. Had this project not been conducting text classification other classification methods may have been feasible. However, the large number of tweets combined with the large number of features of each tweet results in very poor classifier scaling in many cases. Feature selection is one method to mitigate this problem and simultaneously improve accuracy, but even for stringent feature selection (10, 100, and 1000 features) the performance of these classifiers was either not very good, or still required infeasibly large amounts of time to complete.
 
 #Training and Testing Classifiers
+Once the five classifiers were selected (Multinomial Naive Bayes, Logistic Regression, Stochastic Gradient Descent, Perceptron, and the Passive Aggressive Classifier) the next step was to determine parameters that result in higher classifier performance. 
+
+
+
 
 #Best Features
 The **Multinomial Naive Bayes classifier** (with smoothing parameter `alpha = 0.005`) determined the following most infomative features:
