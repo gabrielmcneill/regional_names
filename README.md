@@ -87,7 +87,7 @@ Ignoring all non-ascii characters, my data set of 145,559 tweets can be summariz
 | Minimum Tweet Length (chars)    | 4     | Minimum # Words in Tweet     | 1     |
 | Maximum Tweet Length (chars)    | 140   | Maximum # Words in Tweet     | 43    |
 
-![char hist](https://cloud.githubusercontent.com/assets/10871563/6831921/908ef998-d2e0-11e4-9e47-20265625a1b3.png "Histogram of Number of Characters per Tweet")
+![char hist](https://cloud.githubusercontent.com/assets/10871563/6852990/6a404e20-d3a5-11e4-8a44-848c7a7ba65e.png "Histogram of Number of Characters per Tweet")
 
 Many of the tweets in the 120 to 125 character length range have several URLs, which inflates the character length. The steady rise up to the character limit of 140 seems to be due to tweets that are composed primarily of standard ascii characters. I hypothsize that this is partially an artifact of having ignored any non-ascii characters in the calculation of the number of characters and words.
 
@@ -207,6 +207,8 @@ The **Multinomial Naive Bayes classifier** (with smoothing parameter `alpha = 0.
 | seattlefre                | 1836.55585      | ciaa |  0.00062 |
 | houston tx http           | 1817.73192      | mi https |  0.00063 |
 
+P(West) and P(East) are actually the conditional probabilities P(West|feature) and P(East|feature), calculated from the log probabilities returned by the fitted scikit-learn `MultinomialNB` object. When P(West)/P(East) > 1, this indicates that P(West|feature) > P(East|feature). P(West)/P(East) = 1 indicates that P(West|feature) = P(East|feature), and P(West)/P(East) < 1 indicates that P(West|feature) < P(East|feature).
+
 **Logistic Regression** (with regularization parameter `C = 16.0`) determined the following most informative features:
 
 | Best 20 Features for West | Coefficient | Best 20 Features for East | Coefficient | 
@@ -232,6 +234,7 @@ The **Multinomial Naive Bayes classifier** (with smoothing parameter `alpha = 0.
 | lwtsummit |   5.75490 | ny |   -5.72951 | 
 | texa |   5.74712 | like said |   -5.72190 | 
 
+The coefficient reported here is the coefficient in the Logistic Regresion model where West is coded with 1 and East with 0. Thus high positive coefficient values that correspond to a feature indicate that the feature is associated with the West region, and low negative coefficient values for a feature indicate that the feature is associated with the East region.
 
 The **Passive Aggressive Classifier** determined the following most informative features:
 
@@ -258,9 +261,17 @@ The **Passive Aggressive Classifier** determined the following most informative 
 | bois |  4.54638 | brooklyn |  -2.79378 |
 | ks |  4.53998 | warm weather |  -2.78641 |
 
+The interpretation for the coefficient value produced by the Passive Aggressive Classifier is similar to that of Logistic Regression: high positive values for a feature indicate that the feature is associated with the West, and low negative values indicate that the feature is associated with the East.
+
 #Conclusion
 Multinomial Naive Bayes with Lidstone smoothing parameter `alpha = 0.005` and Logistic Regression with regularization parameter `C = 16.0` are the top two classification methods for predicting the binary region in which a tweet originates in the tweet data set of 145,559 tweets considered in this project. The Passive Aggressive Classifier with regularization parameter `C = 0.5` comes in third place. 
 
 The most informative features produced by these three classifiers make it clear that names of states or cities are generally of greatest use in predicting the origin of a tweet. The most interesting features among the top 20 are those like: [pdx911](https://twitter.com/pdx911police), [ciaa](http://en.wikipedia.org/wiki/Central_Intercollegiate_Athletic_Association), [searchfest](https://www.sempdx.org/searchfest/), sidewalk clean, [suonus](https://twitter.com/hashtag/suonus), [weallgrow](http://www.weallgrowsummit.com/), [mtscore](https://twitter.com/hashtag/mtscore), [lwtsummit](http://lesbianswhotech.org/summit2015/), like said, fucken, like noth, just offer, [michael kor](http://en.wikipedia.org/wiki/Michael_Kors), and warm weather. These 14 features roughly fall into three main categories: (1) organizations or events that are regionally based, (2) topics of interest and (3) regional expressions.
 
-Those among the first group: pdx911 - a Portland-based police watch-group; searchfest - a Portland area digital marketing conference; 
+Those among the first group: pdx911 - a Portland-based police watch-group (indicates West); searchfest - a Portland area digital marketing conference (indicates West); weallgrow - a Los Angeles conference for Latina bloggers (indicates West); lwtsummit - a San Francisco conference for lesbians in tech (indicates West); ciaa - an East Coast collegiate athletic conference (indicates East).
+
+In the second group: the constellation of sidewalk clean, clean request, sidewalk clean request, and street sidewalk clean (all indicate West); mtscore - a twitter hashtag that collects information on Montana sports (indicates West); suonus - a twitter hashtag that collects tweets of concern to Southwestern University students (indicates West); michael kor - (Michael Kors) a New York-based fashion designer and his brand name (indicates East); warm weather - an understandable topic considering the colder and snowier than usual Winter 2015 on the East Coast (one of the few places in the world where temperatures were actually cooler than the average).
+
+The third group: like said - probably "like I said" ("I" would have been removed as a stopword. Indicates East); fucken - this spelling is apparently indicative of the West; like noth - probably "like nothing", a colloquial expression (indicates West); just offer - a somewhat unexpected phrase that sounds vaguely archaic (indicates East). The original motivation for this project was to attempt to classify tweets based on regional English differences; the presence of these phrases in the top 20 features of different classifiers seems to show that this may indeed be possible. With larger data sets collected over longer periods of time it may be easier to build classifiers that make substantial use of regional English variation.
+
+I interpret the final results of this project as providing support for the original hypothesis that Tweets can be effectively classified by region of origin simply from the words in their text. The most promising classifiers in this context appear to be Naive Bayes and Logistic Regression. While one should expect that regional places names (state and city names) will be picked out as being informative of a region, the names of regional events and organizations, user names of popular twitter users, regional topics of interest, and regional differences in English language use all stand out among the most informative features of such classifiers. 
