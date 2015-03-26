@@ -19,12 +19,11 @@ This data science project analyzes Twitter data to classify individual tweets as
 
 
 #Introduction
-The motivation for this project is to evaluate the hypothesis that the geographical origin of a tweet can be predicted using its text alone. Well known studies of regional linguistic variation have demonstrated that it is possible to cluster variations in vocabulary, pronunciation, and grammar in English by geographical regions of the United States ([New York Times interactive dialect map](http://www.nytimes.com/interactive/2013/12/20/sunday-review/dialect-quiz-map.html)). However, when attempting to classify tweet text by US region there are a couple of challenges to overcome in order to create a reasonable classifier: (1) Twitter enforces a 140 character limit on individual tweets, resulting in extremely sparse feature matrices (using the bag-of-words model) and (2) most defining features of regional linguistic variation are not common in normal English text, let alone in the abbreviated form often used in tweets. 
+The motivation for this project is to evaluate the hypothesis that the geographical origin of a tweet can be predicted using its text alone. Well known studies of regional linguistic variation have demonstrated that it is possible to cluster variations in vocabulary, pronunciation, and grammar in English by geographical regions of the United States ([New York Times interactive dialect map](http://www.nytimes.com/interactive/2013/12/20/sunday-review/dialect-quiz-map.html "New York Times Dialect Quiz")). However, when attempting to classify tweet text by US region there are a couple of challenges to overcome in order to create a reasonable classifier: (1) Twitter enforces a 140 character limit on individual tweets, resulting in extremely sparse feature matrices (using the bag-of-words model) and (2) most defining features of regional linguistic variation are not common in normal English text, let alone in the abbreviated form often used in tweets. 
 
 The character limit on tweets makes it crucial to collect as large a sample as possible, and to carefully select features used in training a classifier. Perhaps the most critical aspect of training any text classifier is in the choice of text features, for it is not only an important factor in training a strong classifier, but it also can affect how well a classification method scales under increasing numbers of observations. My initial approach in this project was to compile a list of words and phrases that could possibly serve as informative features. I did so by compiling a list of 381 words and phrases identified by linguists as being characteristic of certain regional dialects. However, none of the 381 words or phrases appeared among an initial test sample of 5,499 tweets, which made it clear that such words were most likely not going to be helpful in training a good classifier (only 78 of the 381 appear in my final sample of 145,559 tweets, and none is among the most informative features). It was clear to me that a pure machine learning approach would be necessary to train a strong classifier.
 
-I considered a wide range of potential classification algorithms including Support Vector Machines, Random Forests, and ensemble methods (AdaBoost, Bagging, Gradient Boosting), but in benchmark timing tests that I ran I determined them to be infeasible due to their poor scaling when applied to my tweet database (145,599 observations of 108,400 features), and when performed on the machines I have access to. I ruled out other classifiers (Ridge Classification, K-Nearest Neighbors, Linear Discriminant Analysis, Quadratic Discriminant Analysis) for similar reasons, and in the end evaluated five different feasible classification methods: Multinomial Naive Bayes, Randomized Logistic Regression, Stochastic Gradient Descent, Perceptron, and the Passive Aggressive Classifier. 
-
+I considered a wide range of potential classification algorithms including Support Vector Machines, Random Forests, and ensemble methods (AdaBoost, Bagging, Gradient Boosting), but benchmark timing tests determined them to be infeasible due to their poor scaling when applied to my tweet database (145,599 observations of 108,400 features), and when performed on the machines I have access to. I ruled out other classifiers (Ridge Classification, K-Nearest Neighbors, Linear Discriminant Analysis, Quadratic Discriminant Analysis) for similar reasons, and in the end evaluated five different feasible classification methods: Multinomial Naive Bayes, Logistic Regression, Stochastic Gradient Descent, Perceptron, and the Passive Aggressive Classifier. 
 
 #Region Definition
 I define two regions of the US in which to classify individual tweets as originating: West and East. The West region is defined as the area bounded by the latitude lines at 24.545905 and 48.997502 degrees, and the longitude lines at -124.78366 and -93.562895 degrees. The East region is likewise defined as the are bounded by the latitude lines at 24.545905 and 48.997502 degrees, and the longitude lines at -93.562895 and -67.097198 degrees. This roughly corresponds to the West region as the rectangle encompassing all states to the west of the border between Texas and Louisiana; all states to the east of that border belong to the East region.
@@ -34,7 +33,7 @@ A large proportion of the tweets that I collected originated in states on the Ea
 At the beginning of the project I originally defined six different US regions (West, Lowerwest, Upperwest, Midwest, South, and East), but because of the comparatively few tweets in the Lowerwest and Upperwest regions training a classifier proved difficult. The large proportion of tweets from the South tended to heavily bias the classifiers to only predict South, leading to classification accuracy only slightly above what one would expect if one were to always classify each tweet as originating in the South. I switched to a binary regional split between East and West in order to have both a more balanced proportion of tweets per region, and to maintain interpretability, defining regional divisions that roughly correspond to intuitively coherent geographical areas.
 
 #Data Collection - Interfacing With The Twitter API
-The program (`twitter_interface.py`) runs from the command line, samples tweets by interacting with the [Twitter API](https://dev.twitter.com/streaming/overview), and deposits them into a pickle (`.p`) file into the current directory. It accepts two command-line arguments: `MAX_TWEETS`, which determines the number of tweets to sample, and an optional `file_name` that the user can set to name the name of the file containing the tweet data. The Twitter streaming API requires [authentication](https://dev.twitter.com/oauth/overview), so in order to use `twitter_interface.py` one must have a twitter account and apply for the proper authentication keys:
+The program `twitter_interface.py` runs from the command line, samples tweets by interacting with the [Twitter API](https://dev.twitter.com/streaming/overview), and saves them in a pickle file in the present working directory. It accepts two command-line arguments: `MAX_TWEETS`, which determines the number of tweets to sample, and an optional `file_name` that the user can set to name the pickle file containing the tweet data. The Twitter streaming API requires [authentication](https://dev.twitter.com/oauth/overview), so in order to use `twitter_interface.py` one must have a twitter account and apply for the proper authentication keys:
 ```python
 APP_KEY='XXX'
 APP_SECRET='XXX'
@@ -63,6 +62,7 @@ The 145,599 tweets in the data set I analyze here were collected different times
 #Data Cleaning
 
 ##Basic Issues
+
 Despite the use of filtering variables (`language='en, locations=US_BOUNDING_BOX'`) when interfacing with the Twitter streaming API, I nevertheless found in my data some tweets written in Spanish, and some tweets whose coordinates were outside of the `US_BOUNDING_BOX` that I used to define the region of interest. Additionally, although all dicts containing tweet data had keys corresponding to geocoordinates of origin (`'coordinates'`), there were many whose values were `None`. I excluded all tweets that were not in English, that did not originate within the West or East region, or that did not have coordinate data. All tweet dicts with region key `'west'` and value `None` were excluded.
 
 ##Tokenization and Stemming
@@ -78,7 +78,7 @@ In addition to tokenization and stopword removal I defined my own class (`Snowba
 #Data Exploration
 Working with text data can be challenging since there are so many non-ascii character encodings. Determining simple summary statistics for a large database of tweet text can be difficult due to its size, but also because of the different decisions one must make about what counts as a character, and what does not. For example, emoji are increasingly common, and while they may appear as one coherent character in tweets, when decoded into unicode they are composed of many characters. :smile: becomes `\xF0\x9F\x98\x84` in utf-8 encoding, and `\U0001f604` in unicode. Twitter has a 140 character limit, but where special characters are concerned all are counted as single characters when they appear as one in a tweet. Thus, when tweet text is decoded, as is necessary for text processing, one may find tweets with an apparent character length of 500 or more. In addition to emoji, there are other specially encoded characters that one must be aware of when processing text.
 
-When ignoring all non-ascii characters, my data set of 145,559 tweets can be summarized as follows:
+Ignoring all non-ascii characters, my data set of 145,559 tweets can be summarized as follows:
 
 | Measure on Number of Characters | Value | Measure on Number of Words | Value |
 |:--------------------------------|------:|:---------------------------|------:|
@@ -89,7 +89,7 @@ When ignoring all non-ascii characters, my data set of 145,559 tweets can be sum
 
 ![char hist](https://cloud.githubusercontent.com/assets/10871563/6831921/908ef998-d2e0-11e4-9e47-20265625a1b3.png "Histogram of Number of Characters per Tweet")
 
-Many of the tweets in the 120 to 125 character length range have several URLs, which inflates the character length. The steady rise up to the character limit of 140 seems to be due to tweets that are composed primarily of standard ascii characters.
+Many of the tweets in the 120 to 125 character length range have several URLs, which inflates the character length. The steady rise up to the character limit of 140 seems to be due to tweets that are composed primarily of standard ascii characters. I hypothsize that this is partially an artifact of having ignored any non-ascii characters in the calculation of the number of characters and words.
 
 An example of a tweet with minimum length: `u''Pist`.
 
@@ -123,24 +123,24 @@ tfidf_vectz = TfidfVectorizer(stop_words='english', strip_accents='unicode',
                               tokenizer=rpg.SnowballEnglishStemmer())
 ```
 
-The below table shows the area under the ROC curves for classifiers, where the only difference is the vectorization method (ROC AUC means and standard errors were calculated using 10-fold cross-validation).
+The below table shows the area under the ROC curves for classifiers, where the only difference is the vectorization method (ROC AUC means and standard errors were calculated using 10-fold cross-validation). These estimated area under the ROC curve scores represent the values for the highest performing classifiers I was able to train.
 
 | Classifier | Area Under ROC Curve (Count Vectorization) | Area Under ROC Curve (Tf-idf Vectorization) |
 |:-----------|:------------------------------------------:|:-------------------------------------------:|
 | Multinomial Naive Bayes | 0.769 (+/-2SE: 0.038) | 0.791 (+/-2SE: 0.037) | 
-| Randomized Logistic Regression | 0.747 (+/-2SE: 0.041) | 0.772 (+/-2SE: 0.038) | 
+| Logistic Regression | 0.747 (+/-2SE: 0.041) | 0.772 (+/-2SE: 0.038) | 
 | Perceptron | 0.552 (+/-2SE: 0.039) | 0.572 (+/-2SE: 0.033) | 
 | Passive Aggressive Classifier | 0.673 (+/-2SE: 0.045) | 0.738 (+/-2SE: 0.042) |
-| Stochastic Gradient Descent | 0.647 (+/-2SE: 0.038) | 0.632 (+/-2SE: 0.040) | 
+| Stochastic Gradient Descent | 0.647 (+/-2SE: 0.038) | 0.6973 (+/- 2SE 0.0395) | 
 
-As the above table suggests, it is generally seems to be the case that the tf-idf vectorization leads to higher performing classifiers in the data I collected.
+ It generally seems to be the case that the tf-idf vectorization leads to higher performing classifiers in the data I collected. But because the size of the standard errors it is hard to say that there is a statistical difference between the classifiers trained on data produced by either method. Likewise, one cannot definitively say that there is a difference between Multinomial Naive Bayes, Logistic Regression, and the Passive Aggressive Classifier, but it is clear that Perceptron does not perform as well as the former three. There is also evidence that Multiomial Naive Bayes and Logistic Regression perform better than Stochastic Gradient Descent. In nearly all tests Multinomial Naive Bayes had the highest average area under the ROC curve of all other classifiers.
 
-As I noted in the introduction, I attempted to use several well-known and high-performing classification methods, but ruled them out due to their performance on smaller test sets as follows (all times are in seconds, and N is the number of documents):
+As I noted in the introduction, I attempted to use several well-known and generally high-performing classification methods, but ruled them out due to their performance on smaller test sets as follows (all times are in seconds, and N is the number of documents):
 
 | Classifier | N = 1000 | N = 2000 | N = 4000 | N = 8000 | N = 10000 | N = 16000 |
 |:-----------|:------------:|:------------:|:------------:|:------------:|:-------------:|:-------------:|
 | Multinomial Naive Bayes                | **0.001** | **0.001** | **0.002** | 0.027 | **0.003** | **0.004** |
-| Randomized Logistic Regression         | 0.428     | 0.584     | 0.915 | 2.011 | 2.177 | 3.687 |
+| Logistic Regression *                  | 0.428     | 0.584     | 0.915 | 2.011 | 2.177 | 3.687 |
 | Support Vector Machines	(linear)       | 0.117     | 0.521     | 2.487 | 11.939 | 19.589 | 56.015 |
 | Random Forests                         | 0.256     | 0.269     | 0.280 | 0.508 | 0.790 | 3.878 |
 | Ridge Classifier with Cross-validation | 0.132     | 0.162     | 0.208 | 0.539 | 0.421 | 0.687 |
@@ -154,16 +154,18 @@ As I noted in the introduction, I attempted to use several well-known and high-p
 | Extra Trees Classifier                 | 0.160     | 0.945 | 5.496 | 29.780 | 48.904 | 173.738 |
 | Gradient Boosting                      | 1.255     | 8.627 | 35.323 | X | X | X |
 
-From the above data and other tests, I ruled out a large number of possible classifiers. After performing several regressions to estimate the functions describing how several of the classifiers scale with time I empirically determined that although Randomized Logistic Regression appeared to have similar times as Random Forests, Randomized Logistic Regression scaled approximately linearly, and Random Forests scaled approximately exponentially (empirical scaling function: `Time = 0.171*exp(N *1.68**-4)`). The Support Vector Machines method appeared to scale in polynomial time (emprirical scaling function: `Time = (2.03**-8)*N**(2.28)`). With these empirical scaling functions I calculated that Random Forests would require about 226 years to finish on my machine, and SVM would require around 3 and a third hours, when run on my entire dataset of 145,559 tweets.
+From the above data and other tests, I ruled out a large number of possible classifiers. After performing several regressions to estimate the functions describing how several of the classifiers scale with time I empirically determined that Random Forests scaled approximately exponentially (empirical scaling function: `Time = 0.171*exp(N *1.68**-4)`). The Support Vector Machines classifier appeared to scale in polynomial time (emprirical scaling function: `Time = (2.03**-8)*N**(2.28)`). With these empirical scaling functions I calculated that Random Forests would require about 226 years to finish on my machine, and SVM would require around 3 and a third hours, when run on my entire dataset of 145,559 tweets. Needless to say, I did not consider either case within the limits of feasibility
 
-At the end of the data modeling phase I settled on the five classifiers that were most feasible in terms of their scaling properties. Had this project not been conducting text classification other classification methods may have been feasible. However, the large number of tweets combined with the large number of features of each tweet results in very poor classifier scaling in many cases. Feature selection is one method to mitigate this problem and simultaneously improve accuracy, but even for stringent feature selection (10, 100, and 1000 features) the performance of these classifiers was either not very good, or still required infeasibly large amounts of time to complete.
+At the end of the data modeling phase I settled on the five classifiers that were most feasible in terms of their scaling properties. Had this project not been conducting text classification other classification methods may have been feasible. However, the large number of tweets combined with the large number of features of each tweet results in very poor classifier scaling in many cases. Feature selection is one method to mitigate this problem and simultaneously improve accuracy, but even for stringent feature selection (10, 100, and 1000 features) the performance of these classifiers (SVC, Random Forests, and ensemble methods) was either not very good, or still required infeasibly large amounts of time to complete.
+
+(* Note: The time test for Logistic Regression also included an extra feature selection step with randomized logistic regression that added to the time that it took to train the Logistic Regression classifier.)
 
 #Training and Testing Classifiers
 Once the five classifiers were selected (Multinomial Naive Bayes, Logistic Regression, Stochastic Gradient Descent, Perceptron, and the Passive Aggressive Classifier) the next step was to determine parameters that result in higher classifier performance. 
 
 ![NB parm](https://cloud.githubusercontent.com/assets/10871563/6831993/e9adfe84-d2e0-11e4-9c4f-d36bce150dd2.png "ROC AUC for Different Values of Naive Bayes Smoothing Parameters")
 
-Using 10-fold cross-validation to estimate the area under the ROC curve for Multinomial Naive Bayes for different values of the Lidstone smoothing parameter (`alpha` in the scikit-learn implementation), it was apparent that lower values resulted in better performance, as one can see in the above plot. I determined an approximate value for the smoothing parameter as `alpha = 0.005`.
+Using 10-fold cross-validation to estimate the area under the ROC curve for Multinomial Naive Bayes for different values of the Lidstone smoothing parameter (`alpha` in the scikit-learn implementation), it was apparent that lower values resulted in better performance, as one can see in the above plot. I determined an approximate value for the smoothing parameter as `alpha = 0.005` through an iterative selection process.
 
 ![LR parm](https://cloud.githubusercontent.com/assets/10871563/6832002/f39a86a6-d2e0-11e4-8158-878b7b8055cf.png "ROC AUC for Different Values of Logistic Regression Regularization Parameters")
 
@@ -173,12 +175,14 @@ As the above plot indicates for Logistic Regression, regularization parameters a
 
 There is a slight performance maximum when the regularization parameter of the Passive Aggressive Classifier is near 0.5, as can be seen in the above plot. `C = 0.5` is the parameter that I settled on as leading to the best ROC area under the curve scores for the Passive Aggressive Classifier.
 
+I used the L2 penalty for Perceptron since the `'elasticnet'` option in the scikit-learn implementation did not appear to alter the performance, and the L1 penalty resulted in worse performance. The best loss function for Stochastic Gradient Descent on my data appears to be the `'squared_huber'` option with L2 penalty. 
+
 ![NB cvs](https://cloud.githubusercontent.com/assets/10871563/6833185/667e326a-d2e8-11e4-823a-01a6f2d546cf.png "ROC AUC for Different Cross-validation Folds on Naive Bayes (alpha=0.005) Classifier")
 
-To answer the question of how many folds of cross-validation would be sufficient for comparing the performance of the various classifiers I investigated how the estimates of the area under the ROC curves changed with different folds. In general, 10-fold cross-validation results in estimates that are very similar to higher fold cross-validation estimates. Because the computation time increases with the fold of cross-validation, I settled on 10-fold cross-validation as the standard method for computing the ROC scoring metrics.
+To answer the question of how many folds of cross-validation would be sufficient for comparing the performance of the various classifiers I investigated how the estimates of the area under the ROC curves changed with different folds. In general, 10-fold cross-validation results in estimates that are very similar to higher fold cross-validation estimates. Because the computation time increases somewhat with the fold of cross-validation, I settled on 10-fold cross-validation as the standard method for computing the ROC scoring metrics.
 
 #Best Features
-The **Multinomial Naive Bayes classifier** (with smoothing parameter `alpha = 0.005`) determined the following most infomative features:
+The **Multinomial Naive Bayes classifier** (with smoothing parameter `alpha = 0.005`) determined the following most informative features:
 
 | Best 20 Features for West | P(West)/P(East) | Best 20 Features for East | P(West)/P(East) | 
 |:--------------------------|----------------:|:--------------------------|----------------:|
@@ -207,25 +211,27 @@ The **Multinomial Naive Bayes classifier** (with smoothing parameter `alpha = 0.
 
 | Best 20 Features for West | Coefficient | Best 20 Features for East | Coefficient | 
 |:--------------------------|------------:|:--------------------------|------------:|
-| retweet favorit | 11.47490 | dnvrlostfound | -14.16393 |
-| bloglovin | 9.76067 | let gooo | -11.67939 |
-| mage | 9.09616 | rosco chicken | -11.03252 |
-| block se | 8.72449 | kuntz | -10.20301 |
-| nb turn | 8.54387 | llamadrama http | -9.27854 |
-| gabriel armandariz | 8.09304 | just dress | -8.80247 |
-| school earli today | 7.65346 | read new | -8.67802 |
-| sahuarita | 7.48578 | glorious goodby | -8.12342 |
-| appl cheek | 7.41900 | life plan | -6.86772 |
-| high court | 7.41687 | littlegingerr | -6.80091 |
-| retweet jump | 7.37838 | hilton https | -6.44863 |
-| nation park | 7.21802 | click forget | -6.37359 |
-| patisseri amp | 7.15735 | golobo | -6.34657 |
-| jazz https | 6.85594 | bout late | -6.33936 |
-| https follow rhythmmjockey | 6.71567 | na right | -6.31088|
-| pictur https | 6.69665| pleas https | -6.17703|
-| music video right | 6.67440 | norwood | -5.97959 |
-| round 4a bracket | 6.66083 | like care color | -5.97925 |
-| long final | 6.65117 | life point | -5.93785 |
+| tx |  12.99549 | fl |   -11.96057 | 
+| ca https |  8.23921 | toronto |   -9.42345 | 
+| seattlefre |   7.99536 | nc |   -9.25324 | 
+| san |   7.22084 | nj |   -9.25277 | 
+| sacramento |   7.11751 | pa |   -8.47564 | 
+| ks |   7.09738 | va |   -8.26559 | 
+| portland |   7.06427 | il |   -7.69512 | 
+| az |   6.82345 | sc http |   -7.01107 | 
+| suonus |   6.57616 | byebyedwi |   -6.34649 | 
+| searchfest |   6.48070 | carolina |   -6.28081 | 
+| scottsdal |   6.45495 | tn http |   -6.08359 | 
+| omaha |   6.34766 | mississippi |   -5.96338 | 
+| wa |   6.25125 | tampa |   -5.83711 | 
+| katramsland |   6.24692 | orlpol |   -5.83264 | 
+| nv |   6.06459 | mi http |   -5.79369 | 
+| like noth |   5.93297 | nyc |   -5.75980 | 
+| weallgrow |   5.76669 | oh https |   -5.75501 | 
+| mtscore |   5.75638 | charlott |   -5.73775 | 
+| lwtsummit |   5.75490 | ny |   -5.72951 | 
+| texa |   5.74712 | like said |   -5.72190 | 
+
 
 The **Passive Aggressive Classifier** determined the following most informative features:
 
@@ -253,3 +259,8 @@ The **Passive Aggressive Classifier** determined the following most informative 
 | ks |  4.53998 | warm weather |  -2.78641 |
 
 #Conclusion
+Multinomial Naive Bayes with Lidstone smoothing parameter `alpha = 0.005` and Logistic Regression with regularization parameter `C = 16.0` are the top two classification methods for predicting the binary region in which a tweet originates in the tweet data set of 145,559 tweets considered in this project. The Passive Aggressive Classifier with regularization parameter `C = 0.5` comes in third place. 
+
+The most informative features produced by these three classifiers make it clear that names of states or cities are generally of greatest use in predicting the origin of a tweet. The most interesting features among the top 20 are those like: [pdx911](https://twitter.com/pdx911police), [ciaa](http://en.wikipedia.org/wiki/Central_Intercollegiate_Athletic_Association), [searchfest](https://www.sempdx.org/searchfest/), sidewalk clean, [suonus](https://twitter.com/hashtag/suonus), [weallgrow](http://www.weallgrowsummit.com/), [mtscore](https://twitter.com/hashtag/mtscore), [lwtsummit](http://lesbianswhotech.org/summit2015/), like said, fucken, like noth, just offer, [michael kor](http://en.wikipedia.org/wiki/Michael_Kors), and warm weather. These 14 features roughly fall into three main categories: (1) organizations or events that are regionally based, (2) topics of interest and (3) regional expressions.
+
+Those among the first group: pdx911 - a Portland-based police watch-group; searchfest - a Portland area digital marketing conference; 
